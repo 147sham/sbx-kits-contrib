@@ -6,8 +6,9 @@ session renders a compact dashboard of where you are and what the session is cos
 
 - **Line 1** — 🐳 Docker Sandboxes · sandbox host · working directory · git branch
   (with a `*` dirty marker).
-- **Line 2** — model · context-window used % (colour-coded) · memory used/total ·
-  1-minute load average · session cost in USD.
+- **Line 2** — model · context-window used % (colour-coded) · 5-hour quota % ·
+  7-day quota % · memory used/total · 1-minute load average · session cost in USD.
+  The quota segments are omitted when not on a claude.ai subscription plan.
 
 The kit ships the script to `~/.claude/statusline.sh` and registers it under `statusLine`
 in `~/.claude/settings.json` — **merging** into the file so the claude base image's other
@@ -19,7 +20,7 @@ other key is left as-is.
 
 ```
 🐳🏖️  Docker Sandboxes · my-sandbox · /home/agent/workspace (main*)
-Claude Opus 4.8 · ctx 32%/200k · mem 1.2/8.0G · load 0.41 · $0.87
+Claude Opus 4.8 · ctx 32%/200k · 5h 18% · 7d 42% · mem 1.2/8.0G · load 0.41 · $0.87
 ```
 
 Segments are omitted when there's nothing to show (e.g. the git segment is blank outside a

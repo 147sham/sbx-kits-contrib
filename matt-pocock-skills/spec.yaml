@@ -1,0 +1,55 @@
+schemaVersion: "1"
+kind: mixin
+name: matt-pocock-skills
+displayName: Matt Pocock Skills
+description: "Installs Matt Pocock's Claude Code skills collection (engineering, productivity, and miscellaneous) from github.com/mattpocock/skills into ~/.claude/skills."
+
+network:
+  allowedDomains:
+    # npm registry — download the skill CLI package
+    - registry.npmjs.org
+    # npm CDN — tarball downloads are served from this host
+    - "*.npmjs.org"
+    # GitHub — skill CLI fetches the skills collection from here
+    - github.com
+    # Pack-file download — GitHub routes git pack data through this CDN
+    - codeload.github.com
+
+commands:
+  install:
+    - command: |
+        set -euo pipefail
+        # Install all skills for Claude Code into the agent user's global
+        # ~/.claude/skills directory. Avoid project-scoped installs here:
+        # the default `skills add` target also writes .agents/skills in the
+        # current working tree, which can poison later build steps.
+        npx --yes "skills@latest" add mattpocock/skills \
+          --skill '*' \
+          --agent claude-code \
+          --global \
+          --copy \
+          --yes
+      user: "1000"
+      description: "Install all Matt Pocock skills into ~/.claude/skills via a pinned skills CLI"
+
+memory: |
+    ## Matt Pocock Skills
+
+    Matt Pocock's Claude Code skills are installed in `~/.claude/skills`. They add
+    structured, opinionated workflows for software development.
+
+    **Engineering skills**: `/ask-matt`, `/code-review`, `/codebase-design`,
+    `/diagnosing-bugs`, `/domain-modeling`, `/grill-with-docs`, `/implement`,
+    `/improve-codebase-architecture`, `/prototype`, `/research`,
+    `/resolving-merge-conflicts`, `/setup-matt-pocock-skills`, `/tdd`, `/to-spec`,
+    `/to-tickets`, `/triage`, `/wayfinder`
+
+    **Productivity skills**: `/grill-me`, `/grilling`, `/handoff`, `/teach`,
+    `/writing-great-skills`
+
+    **Miscellaneous skills**: `/git-guardrails-claude-code`, `/migrate-to-shoehorn`,
+    `/scaffold-exercises`, `/setup-pre-commit`
+
+    Run `/setup-matt-pocock-skills` once per repository to configure your issue
+    tracker (GitHub Issues, Linear, or local files), triage labels, and
+    documentation storage before using the other skills.

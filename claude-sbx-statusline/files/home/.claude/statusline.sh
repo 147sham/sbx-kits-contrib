@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code status line for Docker Sandboxes (two lines).
 #   line 1:  :whale: Docker Sandboxes · HOST · PWD (branch*)
-#   line 2:  MODEL · ctx NN%/Wk · mem U/TG · load L · $COST
+#   line 2:  MODEL · ctx NN%/Wk · 5h NN% · 7d NN% · mem U/TG · load L · $COST
 # Receives session JSON on stdin. Runs on every render, so each segment stays cheap.
 
 input=$(cat)
@@ -9,12 +9,14 @@ input=$(cat)
 # One jq pass extracts every field (one per line); renders run often, so avoid
 # re-forking jq. Line-per-field read preserves empty fields (tab-splitting would
 # collapse leading blanks, since tab is IFS whitespace).
-{ read -r dir; read -r model; read -r pct; read -r winsz; read -r cost; } < <(printf '%s' "$input" | jq -r '
+{ read -r dir; read -r model; read -r pct; read -r winsz; read -r cost; read -r q5h; read -r q7d; } < <(printf '%s' "$input" | jq -r '
   .workspace.current_dir // .cwd // "",
   .model.display_name // "",
   .context_window.used_percentage // "",
   ((.context_window.context_window_size // 0) / 1000 | floor),
-  .cost.total_cost_usd // 0')
+  .cost.total_cost_usd // 0,
+  .rate_limits.five_hour.used_percentage // "",
+  .rate_limits.seven_day.used_percentage // ""')
 [ -z "$dir" ] && dir=$(pwd)
 
 # ANSI colours
@@ -57,6 +59,24 @@ if [ -n "$pct" ] && [ "$pct" != "null" ]; then
   ctx_seg="${c}ctx ${p}%${DIM}/${winsz}k${RST}"
 fi
 
+# --- 5h and 7d quota percentages (claude.ai subscribers only) ---
+q5h_seg=""
+if [ -n "$q5h" ] && [ "$q5h" != "null" ]; then
+  p5=${q5h%.*}
+  if   [ "$p5" -ge 80 ]; then qc=$RED
+  elif [ "$p5" -ge 50 ]; then qc=$YELLOW
+  else qc=$GREEN; fi
+  q5h_seg="${qc}5h ${p5}%${RST}"
+fi
+q7d_seg=""
+if [ -n "$q7d" ] && [ "$q7d" != "null" ]; then
+  p7=${q7d%.*}
+  if   [ "$p7" -ge 80 ]; then qc=$RED
+  elif [ "$p7" -ge 50 ]; then qc=$YELLOW
+  else qc=$GREEN; fi
+  q7d_seg="${qc}7d ${p7}%${RST}"
+fi
+
 # --- Memory: prefer cgroup v2 limit, fall back to /proc/meminfo ---
 mem_seg=""
 if [ -r /sys/fs/cgroup/memory.current ] && [ -r /sys/fs/cgroup/memory.max ]; then
@@ -90,6 +110,6 @@ fi
 cost_seg="${MAGENTA}$(printf '$%.2f' "$cost")${RST}"
 
 line1=$(join "${BOLD}${CYAN}🐳 Docker Sandboxes${RST}" "${YELLOW}$(hostname)${RST}" "${BLUE}${dir}${RST}${git_seg}")
-line2=$(join "$model_seg" "$ctx_seg" "$mem_seg" "$load_seg" "$cost_seg")
+line2=$(join "$model_seg" "$ctx_seg" "$q5h_seg" "$q7d_seg" "$mem_seg" "$load_seg" "$cost_seg")
 
 printf '%s\n%s' "$line1" "$line2"
