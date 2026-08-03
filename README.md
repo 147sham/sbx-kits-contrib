@@ -17,10 +17,10 @@ alias cc="sbx create \
   --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=github-ssh \
   --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=matt-pocock-skills \
   --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=playwright \
-  claude -- --dangerously-skip-permissions"
+  claude"
 
 # cr — claude run: run Claude in the sandbox for the current directory
-alias cr="sbx run claude -- --dangerously-skip-permissions"
+alias cr="sbx run claude"
 
 # cs — claude shell: open a bash shell inside the sandbox for the current directory
 alias cs='sbx exec -it claude-$(basename "$PWD") -- bash'
