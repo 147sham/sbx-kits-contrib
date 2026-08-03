@@ -1,0 +1,42 @@
+schemaVersion: "2"
+kind: mixin
+name: claude-hide-autoupdate-warning
+displayName: Hide Claude Auto-Update Warning
+description: Suppresses Claude Code's "unable to auto-update" warning by disabling the auto-updater. Sets DISABLE_AUTOUPDATER=1 (the authoritative switch) and, belt-and-suspenders, merges autoUpdaterStatus="disabled" into ~/.claude/settings.json without touching any other setting.
+
+requires:
+  agent: claude
+
+environment:
+  variables:
+    # Authoritative switch: turns the auto-updater off entirely, which is what
+    # suppresses the "couldn't auto-update" nag. Env var is honoured reliably;
+    # the settings.json key below is a secondary fallback.
+    DISABLE_AUTOUPDATER: "1"
+
+setup:
+  install:
+    - command: |
+        set -e
+        mkdir -p /home/agent/.claude
+        f=/home/agent/.claude/settings.json
+        [ -f "$f" ] || echo '{}' > "$f"
+        # Merge only the autoUpdaterStatus key; every other setting is left as-is.
+        # Temp file lives in the same dir so the mv is an atomic rename, not a
+        # cross-fs copy. Idempotent — re-running converges on the same value.
+        tmp=$(mktemp -p /home/agent/.claude)
+        jq '.autoUpdaterStatus = "disabled"' "$f" > "$tmp"
+        mv "$tmp" "$f"
+        chown -R agent:agent /home/agent/.claude
+      user: "0"
+      description: Set autoUpdaterStatus="disabled" in ~/.claude/settings.json (jq merge; all other keys preserved)
+
+agentInstructions:
+  content: |
+    ## Claude auto-updater disabled
+
+    This sandbox disables Claude Code's auto-updater so the "unable to
+    auto-update" warning never appears. `DISABLE_AUTOUPDATER=1` is set in the
+    environment (the authoritative switch), and `autoUpdaterStatus` is set to
+    `"disabled"` in `~/.claude/settings.json` as a fallback. Claude Code will
+    not attempt to update itself — pin the version via the base image instead.
