@@ -4,6 +4,28 @@ Community-contributed kits for [Docker Sandboxes](https://docs.docker.com/ai/san
 
 Each top-level directory is a **kit** — a declarative artifact containing a `spec.yaml` and optional `files/` directory that extends sandbox agents with additional capabilities.
 
+## Quick start: shell aliases
+
+Add these to your `~/.bashrc` or `~/.zshrc`. `cc` (claude create) creates a Claude sandbox with every kit in this repo loaded, `cr` (claude run) runs Claude in the sandbox for the current directory, and `cs` (claude shell) opens a bash shell inside it:
+
+```bash
+# cc — claude create: create a sandbox with all kits (append a workspace dir, e.g. `cc .`)
+alias cc="sbx create \
+  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-hide-autoupdate-warning \
+  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-sbx-statusline \
+  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=git-ssh-sign \
+  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=github-ssh \
+  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=matt-pocock-skills \
+  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=playwright \
+  claude -- --dangerously-skip-permissions"
+
+# cr — claude run: run Claude in the sandbox for the current directory
+alias cr="sbx run claude -- --dangerously-skip-permissions"
+
+# cs — claude shell: open a bash shell inside the sandbox for the current directory
+alias cs='sbx exec -it claude-$(basename "$PWD") -- bash'
+```
+
 ## Documentation
 
 - [Kits overview](https://docs.docker.com/ai/sandboxes/customize/kits/) — what kits are and how to use them
