@@ -1,0 +1,68 @@
+schemaVersion: "1"
+kind: mixin
+name: claude-playwright-mcp
+displayName: Claude Code Playwright MCP
+description: "Adds the Playwright MCP server (@playwright/mcp) to Claude Code so the agent can drive a headless Chromium — navigate, click, fill forms, screenshot, and read the page's accessibility tree — inside the sandbox. Registers it at user scope with `claude mcp add`, and installs a matching headless Chromium plus its system libraries (that apt step needs root, which the agent doesn't have at runtime) so the browser actually launches."
+
+requires:
+  agent: claude
+
+environment:
+  variables:
+    # Browsers install under root but the agent runs as uid 1000, so point
+    # Playwright at a shared system path both users can see.
+    PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
+
+caps:
+  network:
+    allow:
+      # @playwright/mcp + its deps from npm
+      - "registry.npmjs.org:443"
+      - "*.npmjs.org:443"
+      # Chromium binary (primary CDN, documented fallback, and the Google
+      # bucket cdn.playwright.dev redirects to for the amd64 build)
+      - "cdn.playwright.dev:443"
+      - "playwright.download.prss.microsoft.com:443"
+      - "storage.googleapis.com:443"
+      # `--with-deps` apt-installs Chromium's system libraries; apt-get update
+      # refreshes every configured source, so all of these must be reachable
+      - "archive.ubuntu.com:80"
+      - "security.ubuntu.com:80"
+      - "ports.ubuntu.com:80"
+      - "download.docker.com:443"
+
+commands:
+  install:
+    - command: |
+        set -euo pipefail
+        npm install -g @playwright/mcp@latest
+        # Install Chromium + its system libs using the exact Playwright bundled
+        # in @playwright/mcp (run from the package dir so npx picks the local
+        # copy), so the browser revision matches what the server launches.
+        cd "$(npm root -g)/@playwright/mcp"
+        PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright npx --no-install playwright install --with-deps chromium
+        rm -rf /var/lib/apt/lists/*
+        chmod -R 777 /opt/ms-playwright
+      user: "0"
+      description: "Install @playwright/mcp and its matching headless Chromium (+ system libs)"
+    - command: claude mcp add --scope user playwright -- npx @playwright/mcp@latest --headless --no-sandbox
+      user: "1000"
+      description: "Register the playwright MCP server in Claude Code at user scope"
+
+agentContext: |
+  ## Playwright MCP
+
+  Claude Code has the **Playwright MCP** server (`@playwright/mcp`) registered
+  at user scope, so its browser tools are available in every project. Confirm
+  with `claude mcp list` or `/mcp` — the server is named `playwright`.
+
+  It drives a real headless **Chromium** (under `/opt/ms-playwright`; leave
+  `PLAYWRIGHT_BROWSERS_PATH` alone). Use its tools to navigate, click, type,
+  fill forms, wait, screenshot/PDF, and read a page's accessibility snapshot —
+  prefer these over scraping raw HTML when you need to *interact* with a page.
+  It runs `--headless --no-sandbox` (no display, unprivileged container user).
+
+  Sites must be reachable through the sandbox network policy: `localhost`
+  servers always work; external sites fail with a proxy error unless their
+  domains are allowed. For *writing and running* Playwright test suites (the
+  CLI + `@playwright/test`), add the separate `playwright` kit as well.

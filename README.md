@@ -12,6 +12,7 @@ Add these to your `~/.bashrc` or `~/.zshrc`. `cc` (claude create) creates a Clau
 # cc — claude create: create a sandbox with all kits (append a workspace dir, e.g. `cc .`)
 alias cc="sbx create \
   --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-hide-autoupdate-warning \
+  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-playwright-mcp \
   --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-sbx-statusline \
   --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=git-ssh-sign \
   --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=github-ssh \
