@@ -24,7 +24,7 @@ Two install steps:
 2. **Registers the server**, at user scope, exactly as you would by hand:
 
    ```console
-   $ claude mcp add --scope user playwright -- npx @playwright/mcp@latest --headless --no-sandbox
+   $ claude mcp add --scope user playwright -- npx @playwright/mcp@latest --headless --no-sandbox --browser=chromium
    ```
 
 ### Why it's more than a one-liner
@@ -33,6 +33,7 @@ The bare `claude mcp add playwright npx @playwright/mcp@latest` needs two things
 
 - **A browser with system libraries.** Playwright's Chromium needs apt-installed libraries, and `apt` needs **root** — the agent runs as uid 1000 and can't install them at runtime. So the kit installs the browser (and its libs) at build time as root. `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` puts it where the agent user can see it.
 - **`--headless --no-sandbox`.** The sandbox has no display server, and Chromium's own sandbox can't nest inside the container's unprivileged user. Without these flags the browser fails to launch.
+- **`--browser=chromium`.** `@playwright/mcp` defaults to the `chrome` channel, which isn't installed — only Chromium is. Without this flag the server fails at launch looking for `/opt/google/chrome/chrome`.
 
 Everything else is just the command you'd run yourself. To pin a version, replace `@latest` in both install steps.
 

@@ -45,7 +45,7 @@ commands:
         chmod -R 777 /opt/ms-playwright
       user: "0"
       description: "Install @playwright/mcp and its matching headless Chromium (+ system libs)"
-    - command: claude mcp add --scope user playwright -- npx @playwright/mcp@latest --headless --no-sandbox
+    - command: claude mcp add --scope user playwright -- npx @playwright/mcp@latest --headless --no-sandbox --browser=chromium
       user: "1000"
       description: "Register the playwright MCP server in Claude Code at user scope"
 
