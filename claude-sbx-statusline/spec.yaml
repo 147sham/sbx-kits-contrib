@@ -2,7 +2,7 @@ schemaVersion: "1"
 kind: mixin
 name: claude-sbx-statusline
 displayName: Claude Code Status Line
-description: Adds a two-line Claude Code status line tailored to Docker Sandboxes. Line one shows the Docker whale, the sandbox name (container hostname), the workspace path with the home prefix collapsed to ~, and the git branch with a dirty marker. Line two shows the model, context-window usage, 5-hour and 7-day quota usage, and session cost. Ships a self-contained bash script (jq + git only, no npm, no network) to ~/.claude/statusline.sh and sets the statusLine key in ~/.claude/settings.json, merging so every other setting is preserved (an existing statusLine is intentionally replaced, since installing this status line is the point of the kit).
+description: Adds a two-line Claude Code status line tailored to Docker Sandboxes. Line one shows the Docker whale, the sandbox name (container hostname), the workspace path with the home prefix collapsed to ~, and the git branch with a dirty marker. Line two shows the model, effort level, context-window usage, 5-hour and 7-day quota usage, and session cost. Ships a self-contained bash script (jq + git only, no npm, no network) to ~/.claude/statusline.sh and sets the statusLine key in ~/.claude/settings.json, merging so every other setting is preserved (an existing statusLine is intentionally replaced, since installing this status line is the point of the kit).
 
 requires:
   agent: claude
@@ -34,7 +34,7 @@ agentContext: |
   ~/.claude/settings.json. Line one shows the Docker whale, the sandbox name
   (the container hostname), the workspace path with the home prefix collapsed
   to ~, and the git branch with a `*` when the tree is dirty. Line two shows
-  the model, context-window usage as a percentage of the window size, the
+  the model, the reasoning effort level, context-window usage as a percentage of the window size, the
   5-hour and 7-day quota usage (claude.ai subscribers only; blank otherwise),
   and the session cost so far.
 

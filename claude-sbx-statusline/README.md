@@ -6,7 +6,7 @@ renders where you are and what the session is costing:
 
 ```
 🐳 Docker Sandboxes · claude-ava · ~/Documents/projs/ava (main*)
-Fable 5 · ctx 82%/1000k · 5h 39% · 7d 23% · $307.72
+Fable 5 · effort xhigh · ctx 82%/1000k · 5h 39% · 7d 23% · $307.72
 ```
 
 ## What you get
@@ -18,6 +18,7 @@ Fable 5 · ctx 82%/1000k · 5h 39% · 7d 23% · $307.72
 | 1 | directory | the workspace path, with the host home prefix collapsed to `~` |
 | 1 | git | the branch, with a red `*` when the working tree is dirty; blank outside a repo |
 | 2 | model | the active model's display name |
+| 2 | effort | the reasoning effort level (`low` to `max`); hidden when the model has no effort setting |
 | 2 | context | context-window usage as a percentage, plus the window size in k tokens |
 | 2 | 5h / 7d | the 5-hour and 7-day quota usage (claude.ai subscribers only; blank on API-key auth) |
 | 2 | cost | session cost so far in USD |

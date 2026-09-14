@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code status line for Docker Sandboxes (two lines).
 #   line 1:  🐳 Docker Sandboxes · SANDBOX · ~/path/to/workspace (branch*)
-#   line 2:  MODEL · ctx NN%/Wk · 5h NN% · 7d NN% · $COST
+#   line 2:  MODEL · effort LEVEL · ctx NN%/Wk · 5h NN% · 7d NN% · $COST
 # Receives the session JSON on stdin. Runs on every render, so each segment
 # stays cheap: one jq pass, one or two git calls, no network.
 
@@ -10,9 +10,10 @@ input=$(cat)
 # One jq pass extracts every field (one per line); renders run often, so avoid
 # re-forking jq. Line-per-field read preserves empty fields (tab-splitting would
 # collapse leading blanks, since tab is IFS whitespace).
-{ read -r dir; read -r model; read -r pct; read -r winsz; read -r cost; read -r q5h; read -r q7d; } < <(printf '%s' "$input" | jq -r '
+{ read -r dir; read -r model; read -r effort; read -r pct; read -r winsz; read -r cost; read -r q5h; read -r q7d; } < <(printf '%s' "$input" | jq -r '
   .workspace.current_dir // .cwd // "",
   .model.display_name // "",
+  .effort.level // "",
   .context_window.used_percentage // "",
   ((.context_window.context_window_size // 0) / 1000 | floor),
   .cost.total_cost_usd // 0,
@@ -64,6 +65,10 @@ fi
 model_seg=""
 [ -n "$model" ] && model_seg="${BOLD}${WHITE}${model}${RST}"
 
+# --- Effort level; absent when the model has no effort parameter ---
+effort_seg=""
+[ -n "$effort" ] && [ "$effort" != "null" ] && effort_seg="${CYAN}effort ${effort}${RST}"
+
 # --- Context, colour-coded; blank early in a session ---
 ctx_seg=""
 if [ -n "$pct" ] && [ "$pct" != "null" ]; then
@@ -96,6 +101,6 @@ fi
 cost_seg="${MAGENTA}$(printf '$%.2f' "$cost")${RST}"
 
 line1=$(join "${BOLD}${CYAN}🐳 Docker Sandboxes${RST}" "${YELLOW}$(hostname)${RST}" "${BLUE}${show_dir}${RST}${git_seg}")
-line2=$(join "$model_seg" "$ctx_seg" "$q5h_seg" "$q7d_seg" "$cost_seg")
+line2=$(join "$model_seg" "$effort_seg" "$ctx_seg" "$q5h_seg" "$q7d_seg" "$cost_seg")
 
 printf '%s\n%s' "$line1" "$line2"
