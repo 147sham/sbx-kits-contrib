@@ -6,7 +6,7 @@ renders where you are and what the session is costing:
 
 ```
 🐳 Docker Sandboxes · claude-ava · ~/Documents/projs/ava (main*)
-Fable 5 · effort xhigh · ctx 82%/1000k · 5h 39% · 7d 23% · $307.72
+Fable 5 · effort xhigh · ctx ████████░░ 82%/1000k · 5h ████░░░░░░ 39% ↻ 2h13m · 7d ██░░░░░░░░ 23% · $307.72
 ```
 
 ## What you get
@@ -19,11 +19,11 @@ Fable 5 · effort xhigh · ctx 82%/1000k · 5h 39% · 7d 23% · $307.72
 | 1 | git | the branch, with a red `*` when the working tree is dirty; blank outside a repo |
 | 2 | model | the active model's display name |
 | 2 | effort | the reasoning effort level (`low` to `max`); hidden when the model has no effort setting |
-| 2 | context | context-window usage as a percentage, plus the window size in k tokens |
-| 2 | 5h / 7d | the 5-hour and 7-day quota usage (claude.ai subscribers only; blank on API-key auth) |
+| 2 | context | ten-cell bar and percentage of the context window used, plus the window size in k tokens |
+| 2 | 5h / 7d | bars and percentages of the 5-hour and 7-day quota used (claude.ai subscribers only; blank on API-key auth). The 5h segment adds `↻ 2h13m`, the time until that window resets |
 | 2 | cost | session cost so far in USD |
 
-Context and quota segments turn yellow at 50% and red at 80%.
+Context and quota bars turn yellow at 50% and red at 80%, with the unused part dimmed. They use the same block characters as Claude Code's own `/usage` view.
 
 The permission-mode line Claude Code draws below the status line (`bypass permissions on`,
 background agent count) is Claude Code's own UI and needs no configuration here.
