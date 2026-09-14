@@ -71,8 +71,8 @@ the value in this kit's `environment.variables`.
 
 ## Viewing the data with agentsview
 
-See [Tracking sandbox usage with agentsview](../README.md#tracking-sandbox-usage-with-agentsview)
-in the repo README for install steps and the config that points agentsview at `~/.sbx-claude`.
+See [Tracking sandbox usage with agentsview](../GUIDE.md#tracking-sandbox-usage-with-agentsview)
+in the repo guide for install steps and the config that points agentsview at `~/.sbx-claude`.
 
 ## Privacy note
 

@@ -43,7 +43,7 @@ Your kit's `network.allowedDomains` is the **complete** outbound contract — th
 
 Watch out for package managers: `apt-get update`, `npm install`, `pip install`, etc. each refresh metadata for every configured source, not just yours. For kits built on `shell-docker` / `*-docker` templates that means `download.docker.com` must be in your list even if you only `apt-get install` from Ubuntu's main archive — `apt-get update` fails the install otherwise. List `archive.ubuntu.com`, `security.ubuntu.com`, **and** `ports.ubuntu.com` so the kit works on both amd64 (CI) and arm64 (Apple Silicon).
 
-See [Declare every domain your kit needs](./README.md#declare-every-domain-your-kit-needs) in the README for the probe recipe that surfaces the exact set of domains your install hooks reach for under `deny-all`.
+See [Declare every domain your kit needs](./GUIDE.md#declare-every-domain-your-kit-needs) in the README for the probe recipe that surfaces the exact set of domains your install hooks reach for under `deny-all`.
 
 ## Verifying locally
 
@@ -89,11 +89,11 @@ $ sbx --app-name sbx-kits-contrib-tck ls                          # find the tck
 $ sbx --app-name sbx-kits-contrib-tck policy log <sandbox-name>
 ```
 
-Every row under `Blocked requests` is a host your kit reached for under `deny-all`. See [Declare every domain your kit needs](./README.md#declare-every-domain-your-kit-needs) for the cross-arch gotchas (`archive.ubuntu.com`, `security.ubuntu.com`, **and** `ports.ubuntu.com`) and the package-manager refresh trap (`apt-get update` re-fetches every configured source).
+Every row under `Blocked requests` is a host your kit reached for under `deny-all`. See [Declare every domain your kit needs](./GUIDE.md#declare-every-domain-your-kit-needs) for the cross-arch gotchas (`archive.ubuntu.com`, `security.ubuntu.com`, **and** `ports.ubuntu.com`) and the package-manager refresh trap (`apt-get update` re-fetches every configured source).
 
 If the scoped daemon ever gets wedged: `sbx --app-name sbx-kits-contrib-tck reset --force` wipes only that daemon's state.
 
-Prerequisites for e2e (`/dev/kvm`, Secret Service on Linux, etc.) are in [End-to-end (e2e) Tests](./README.md#end-to-end-e2e-tests) in the README.
+Prerequisites for e2e (`/dev/kvm`, Secret Service on Linux, etc.) are in [End-to-end (e2e) Tests](./GUIDE.md#end-to-end-e2e-tests) in the README.
 
 ## Sign-off and signing
 

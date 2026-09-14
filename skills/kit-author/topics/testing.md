@@ -2,7 +2,7 @@
 
 Four layers. Run **all four locally** before opening a PR — only the first two run on CI for fork PRs.
 
-**Why fork contributors must run e2e locally.** The repo's CI e2e legs (`e2e-release`, which gates the PR, and the informational `e2e-nightly`) need `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` to pull the template image, and GitHub does not expose secrets to workflows triggered from forks. So if you're contributing from a fork (the common case), the e2e legs are **skipped silently** on your PR — the reviewer sees a green check that does not include `TestE2EKit`. The only place those assertions ever run is on your laptop. See [`.github/workflows/tck.yml`](../../../.github/workflows/tck.yml) and the "Running in CI" note in [the README](../../../README.md#running-in-ci).
+**Why fork contributors must run e2e locally.** The repo's CI e2e legs (`e2e-release`, which gates the PR, and the informational `e2e-nightly`) need `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` to pull the template image, and GitHub does not expose secrets to workflows triggered from forks. So if you're contributing from a fork (the common case), the e2e legs are **skipped silently** on your PR — the reviewer sees a green check that does not include `TestE2EKit`. The only place those assertions ever run is on your laptop. See [`.github/workflows/tck.yml`](../../../.github/workflows/tck.yml) and the "Running in CI" note in [the README](../../../GUIDE.md#running-in-ci).
 
 ## 1. Spec-level validation
 
@@ -89,7 +89,7 @@ KIT_UNDER_TEST="$PWD/my-kit" \
   go test -tags=e2e -v -timeout 25m -count=1 ./tck/...
 ```
 
-Prerequisites: `sbx` on `PATH`, authenticated against Docker Hub, Linux with `/dev/kvm` accessible. See the repository [README](../../../README.md#end-to-end-e2e-tests) for the full setup and the precise assertions performed.
+Prerequisites: `sbx` on `PATH`, authenticated against Docker Hub, Linux with `/dev/kvm` accessible. See the repository [README](../../../GUIDE.md#end-to-end-e2e-tests) for the full setup and the precise assertions performed.
 
 ### `TestE2EKit` — the single e2e test
 
@@ -242,7 +242,7 @@ For ad-hoc probing of a single sandbox without running e2e, `sbx policy log` wor
 sbx policy log <sandbox>
 ```
 
-Every entry in the "Blocked requests" section is a domain your install or startup hook reached for. Add it to `permissions.network.allow` (or accept the block) and re-probe. The repository [README](../../../README.md#declare-every-domain-your-kit-needs) has the hand-built probe-sandbox variant of this recipe.
+Every entry in the "Blocked requests" section is a domain your install or startup hook reached for. Add it to `permissions.network.allow` (or accept the block) and re-probe. The repository [README](../../../GUIDE.md#declare-every-domain-your-kit-needs) has the hand-built probe-sandbox variant of this recipe.
 
 ## Common pitfall: "install commands completed" ≠ success
 

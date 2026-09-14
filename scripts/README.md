@@ -4,7 +4,7 @@ Standalone utilities for kit authors and maintainers. Each script is self-contai
 
 ## `sbx-kits.sh` — `cc` / `cm` / `cr` / `cs` shell helpers
 
-Source it from `~/.zshrc` or `~/.bashrc`. Defines `cc` (pick kits, create a Claude sandbox), `cm` (recreate an existing sandbox with the current kits while keeping its Claude state), `cr` (run Claude in the current directory's sandbox) and `cs` (shell into it). Usage, the kit picker, and every `SBX_KITS*` environment knob are documented in the repo README under [Quick start: shell helpers](../README.md#quick-start-shell-helpers).
+Source it from `~/.zshrc` or `~/.bashrc`. Defines `cc` (pick kits, create a Claude sandbox), `cm` (recreate an existing sandbox with the current kits while keeping its Claude state), `cr` (run Claude in the current directory's sandbox) and `cs` (shell into it). Usage, the kit picker, and every `SBX_KITS*` environment knob are documented in the repo guide under [Quick start: shell helpers](../GUIDE.md#shell-helpers).
 
 ## `sbx-kit-pick` — interactive kit picker
 

@@ -40,6 +40,6 @@ One-time setup if you haven't run e2e on this machine before:
 `sbx --app-name sbx-kits-contrib-tck login`.
 
 See [CONTRIBUTING.md → Verifying locally](../CONTRIBUTING.md#verifying-locally)
-and [README → Declare every domain your kit needs](../README.md#declare-every-domain-your-kit-needs)
+and [README → Declare every domain your kit needs](../GUIDE.md#declare-every-domain-your-kit-needs)
 for the cross-arch domain gotchas (`archive.ubuntu.com`,
 `security.ubuntu.com`, `ports.ubuntu.com`) and the package-manager refresh trap.
