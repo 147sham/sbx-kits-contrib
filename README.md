@@ -53,20 +53,19 @@ A first project looks like this:
 
 ```bash
 cd ~/code/my-project
-cc          # tick the kits you want, Enter
+cc          # arrows + space to pick kits, Enter
 cr          # Claude starts inside the sandbox
 ```
 
 The picker remembers your last choice, so `cc` in the next project is just Enter:
 
 ```
-Kits to load (numbers toggle, a = all, n = none, Enter = confirm):
-  [x]  1) claude-hide-autoupdate-warning   Suppresses Claude Code's "unable to auto-update" warning ...
+Kits to load   ↑/↓ move · space/number toggle · a all · n none · Enter confirm · q quit
+> [x]  1) claude-hide-autoupdate-warning   Suppresses Claude Code's "unable to auto-update" warning ...
   [ ]  2) claude-playwright-mcp            Adds the Playwright MCP server to Claude Code ...
   [x]  3) claude-sbx-session-sync          Mirrors the sandbox's Claude Code transcripts to the host ...
   [x]  4) claude-sbx-statusline            Adds a two-line Claude Code status line ...
   ...
->
 ```
 
 Skip the prompt with `SBX_KITS=claude-sbx-statusline,git-ssh-sign cc`. Every knob is in the [guide](./GUIDE.md#shell-helpers).

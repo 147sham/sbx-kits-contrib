@@ -6,7 +6,9 @@
 # on stdout. All prompting goes to stderr and reads from the terminal, so the
 # output can be captured by a caller (see scripts/sbx-kits.sh).
 #
-#   sbx-kit-pick             checklist; preselects the last choice, or all
+#   sbx-kit-pick             interactive checklist (arrows/j/k move, space or a
+#                            digit toggles, a all, n none, Enter confirms, q quits);
+#                            preselects the last choice, or all
 #   sbx-kit-pick --all       every kit, no prompt
 #   sbx-kit-pick --last      last choice again, no prompt (falls back to all)
 #   sbx-kit-pick --kits a,b  exactly these kits, no prompt (empty = none)
@@ -75,34 +77,63 @@ fi
 # --- checklist ---------------------------------------------------------------
 # Prompt only when the input can actually be opened: /dev/tty exists even
 # without a controlling terminal (cron, agents), and opening it then fails.
+# Keys: up/down or k/j move, space or a digit toggles, a = all, n = none,
+# Enter confirms, q or Esc cancels. Reads single keys (raw mode when the input
+# is a terminal; a plain file of keystrokes works too, which the tests use).
 if [ "$mode" = prompt ] && ( : <"$tty_in" ) 2>/dev/null; then
-  # Open the input once; reopening per read would restart a file from line 1.
   exec 3<"$tty_in"
-  while :; do
+  raw=0
+  if [ -t 3 ]; then
+    raw=1
+    saved_stty=$(stty -g <&3)
+    restore() { stty "$saved_stty" <&3 2>/dev/null || true; printf '\033[?25h' >&2; }
+    trap restore EXIT
+    trap 'restore; echo; echo "sbx-kit-pick: cancelled" >&2; exit 130' INT TERM
+    stty -echo -icanon min 1 time 0 <&3
+    printf '\033[?25l' >&2
+  fi
+  cols=$(tput cols 2>/dev/null || echo 120); [ "$cols" -ge 60 ] 2>/dev/null || cols=120
+  dw=$((cols - 46)); [ "$dw" -ge 12 ] || dw=12
+  cur=0; drawn=0
+  draw() {
+    local i mark ptr
+    [ "$drawn" = 1 ] && printf '\033[%dA\033[J' $((n + 2)) >&2
     {
-      echo
-      echo "Kits to load (numbers toggle, a = all, n = none, Enter = confirm):"
+      printf 'Kits to load   ↑/↓ move · space/number toggle · a all · n none · Enter confirm · q quit\n'
       for ((i = 0; i < n; i++)); do
         mark='[ ]'; [ "${sel[i]}" = 1 ] && mark='[x]'
-        printf '  %s %2d) %-32s %s\n' "$mark" $((i + 1)) "${kits[i]}" "${descs[i]}"
+        ptr=' '; [ "$i" = "$cur" ] && ptr='>'
+        printf '%s %s %2d) %-32s %s\n' "$ptr" "$mark" $((i + 1)) "${kits[i]}" "$(printf '%s' "${descs[i]}" | cut -c1-"$dw")"
       done
-      printf '> '
+      printf '\n'
     } >&2
-    IFS= read -r line <&3 || break
-    case $line in
-      '') break ;;
-      a|A) for ((i = 0; i < n; i++)); do sel[i]=1; done ;;
-      n|N) for ((i = 0; i < n; i++)); do sel[i]=0; done ;;
-      *)
-        for tok in $line; do
-          if [[ $tok =~ ^[0-9]+$ ]] && [ "$tok" -ge 1 ] && [ "$tok" -le "$n" ]; then
-            i=$((tok - 1)); sel[i]=$((1 - sel[i]))
-          else
-            echo "  ignored: '$tok' (use 1-$n, a, n, or Enter)" >&2
-          fi
-        done ;;
+    drawn=1
+  }
+  toggle() { sel[$1]=$((1 - sel[$1])); }
+  cancel() { [ "$raw" = 1 ] && restore; trap - EXIT; echo "sbx-kit-pick: cancelled" >&2; exit 130; }
+  while :; do
+    draw
+    IFS= read -rsn1 key <&3 || break                      # EOF confirms
+    case $key in
+      $'\e')
+        seq=; IFS= read -rsn2 -t 1 seq <&3 || true
+        case $seq in
+          '[A'|'OA') [ "$cur" -gt 0 ] && cur=$((cur - 1)) ;;
+          '[B'|'OB') [ "$cur" -lt $((n - 1)) ] && cur=$((cur + 1)) ;;
+          '') cancel ;;
+        esac ;;
+      ''|$'\r')  break ;;                                   # Enter
+      ' ')       toggle "$cur" ;;
+      k|K)       [ "$cur" -gt 0 ] && cur=$((cur - 1)) ;;
+      j|J)       [ "$cur" -lt $((n - 1)) ] && cur=$((cur + 1)) ;;
+      [1-9])     [ "$key" -le "$n" ] && toggle $((key - 1)) ;;
+      a|A)       for ((i = 0; i < n; i++)); do sel[i]=1; done ;;
+      n|N)       for ((i = 0; i < n; i++)); do sel[i]=0; done ;;
+      q|Q|$'\x03') cancel ;;
     esac
   done
+  draw
+  if [ "$raw" = 1 ]; then restore; trap - EXIT INT TERM; fi
 fi
 
 # --- output + remember -------------------------------------------------------

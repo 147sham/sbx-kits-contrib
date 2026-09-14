@@ -55,12 +55,12 @@ What each step does, in order:
 1. **Platform check.** macOS on Apple silicon, or Linux with `/dev/kvm` accessible. Warns if `/dev/kvm` is missing or not writable (add yourself to the `kvm` group).
 2. **Prerequisites.** `git`, `jq`, `rsync`, `curl`. Installs missing ones with Homebrew, apt, or dnf.
 3. **`sbx`.** If absent: `brew trust docker/tap && brew install docker/tap/sbx` on macOS, or Docker's apt repository plus the `docker-sbx` package on Ubuntu. Existing installs are left alone.
-4. **Kit allowlist.** `sbx` only installs kits from publishers in `kit.allowedSources`. The installer reads the current list and appends `github.com/147sham/` if missing.
-5. **Clone.** `git clone` into `~/.sbx-kits`, or `git pull --ff-only` if it exists.
-6. **Directories.** `~/.sbx-claude/projects` (session mirror) and `~/.config/sbx-kits` (remembered kit selection).
-7. **Shell rc.** Appends a block between `# >>> sbx-kits >>>` and `# <<< sbx-kits <<<` markers to `~/.zshrc` or `~/.bashrc` (by `$SHELL`). Re-runs replace the block in place. If you had added a `source .../scripts/sbx-kits.sh` line by hand, it is left alone.
-8. **agentsview** (asks). Installs it via its official script and adds `~/.sbx-claude/projects` to the `dirs` list in `~/.agentsview/config.toml`, editing only that line.
-9. **Docker sign-in** (asks). Runs `sbx login`, which opens a browser.
+4. **Docker sign-in** (asks, skipped when already signed in). Runs `sbx login`, which opens a browser.
+5. **Kit allowlist.** `sbx` only installs kits from publishers in `kit.allowedSources`. The installer reads the current list and appends `github.com/147sham/` if missing.
+6. **Clone.** `git clone` into `~/.sbx-kits`, or `git pull --ff-only` if it exists.
+7. **Directories.** `~/.sbx-claude/projects` (session mirror) and `~/.config/sbx-kits` (remembered kit selection).
+8. **Shell rc.** Appends a block between `# >>> sbx-kits >>>` and `# <<< sbx-kits <<<` markers to `~/.zshrc` or `~/.bashrc` (by `$SHELL`). Re-runs replace the block in place. If you had added a `source .../scripts/sbx-kits.sh` line by hand, it is left alone.
+9. **agentsview** (asks). Installs it via its official script and adds `~/.sbx-claude/projects` to the `dirs` list in `~/.agentsview/config.toml`, editing only that line.
 
 Environment overrides: `SBX_KITS_HOME` (clone location), `SBX_KITS_GIT_URL` (your fork), `SBX_KITS_RC` (rc file), `SBX_KITS_AGENTSVIEW=1|0` and `SBX_KITS_LOGIN=1|0` (answer the prompts up front, useful for scripted installs).
 
@@ -103,13 +103,12 @@ Claude migrate. See [Migrating an existing sandbox](#migrating-an-existing-sandb
 [`scripts/sbx-kit-pick`](./scripts/sbx-kit-pick) lists every top-level directory that contains a `spec.yaml`, with the first line of its description:
 
 ```
-Kits to load (numbers toggle, a = all, n = none, Enter = confirm):
-  [x]  1) claude-hide-autoupdate-warning   Suppresses Claude Code's "unable to auto-update" warning ...
+Kits to load   ↑/↓ move · space/number toggle · a all · n none · Enter confirm · q quit
+> [x]  1) claude-hide-autoupdate-warning   Suppresses Claude Code's "unable to auto-update" warning ...
   [ ]  2) claude-playwright-mcp            Adds the Playwright MCP server (@playwright/mcp) ...
->
 ```
 
-Type numbers to toggle (several at once: `2 7`), `a` for all, `n` for none, Enter to confirm. The choice is saved to `~/.config/sbx-kits/selected` and preselected next time; the first run preselects everything. Without a usable terminal (cron, an agent running `cc`) it uses the saved selection silently.
+Move with the arrow keys (or `j`/`k`), toggle the highlighted kit with space or any kit by its number, `a` for all, `n` for none, Enter to confirm, `q` or Esc to cancel. The choice is saved to `~/.config/sbx-kits/selected` and preselected next time; the first run preselects everything. Without a usable terminal (cron, an agent running `cc`) it uses the saved selection silently.
 
 Standalone flags: `--all`, `--last`, `--kits a,b` (empty means none). It prints the chosen names one per line on stdout, so it is usable from other tooling.
 
