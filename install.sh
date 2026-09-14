@@ -6,7 +6,8 @@
 # Sets up everything needed to run Claude Code in Docker Sandboxes with the
 # kits in this repo:
 #
-#   1. checks the platform and installs missing prerequisites (git, jq, rsync, curl)
+#   1. checks the platform and installs missing prerequisites (git, jq, rsync, curl,
+#      and gum for the kit picker's TUI, when a package manager can provide it)
 #   2. installs the sbx CLI if it is missing (Homebrew on macOS, Docker's apt repo on Linux)
 #   3. optionally signs you in to Docker (sbx login)
 #   4. allows this repo as a kit source in sbx (kit.allowedSources)
@@ -98,6 +99,21 @@ main() {
       die "Please install$missing with your package manager and re-run."
     fi
     ok "installed$missing"
+  fi
+
+  step "Checking gum (nicer kit picker; optional)"
+  if have gum; then
+    ok "gum $(gum --version 2>/dev/null | awk '{print $3}')"
+  elif [ "$os" = Darwin ] && have brew; then
+    if brew install -q gum >/dev/null 2>&1; then ok "installed gum"; else warn "could not install gum; the kit picker will use its basic menu"; fi
+  elif have apt-get; then
+    if sudo mkdir -p /etc/apt/keyrings \
+       && curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg \
+       && echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | sudo tee /etc/apt/sources.list.d/charm.list >/dev/null \
+       && sudo apt-get update -qq && sudo apt-get install -y -qq gum; then ok "installed gum"
+    else warn "could not install gum; the kit picker will use its basic menu"; fi
+  else
+    info "skipped (no installer for this platform); the kit picker will use its basic menu"
   fi
 
   # --- 2. sbx ----------------------------------------------------------------

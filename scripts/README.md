@@ -8,7 +8,7 @@ Source it from `~/.zshrc` or `~/.bashrc`. Defines `cc` (pick kits, create a Clau
 
 ## `sbx-kit-pick` — interactive kit picker
 
-Used by `cc` and `cm`, but standalone: lists every kit directory in the repo as a checklist, remembers the last choice in `~/.config/sbx-kits/selected`, and prints the chosen kit names one per line on stdout (prompting goes to stderr and reads the terminal). `--all`, `--last` and `--kits a,b` skip the prompt; with no usable terminal it silently uses the default selection. `SBX_KITS_STATE` overrides the state file, which the tests use.
+Used by `cc` and `cm`, but standalone: lists every kit directory in the repo as a checklist (drawn with [gum](https://github.com/charmbracelet/gum) when installed, a bash menu otherwise; `SBX_KIT_PICK_UI=basic` forces the latter), remembers the last choice in `~/.config/sbx-kits/selected`, and prints the chosen kit names one per line on stdout (prompting goes to stderr and reads the terminal). `--all`, `--last` and `--kits a,b` skip the prompt; with no usable terminal it silently uses the default selection. `SBX_KITS_STATE` overrides the state file, which the tests use.
 
 ## `migrate-v1-to-v2.go` — v1 → v2 spec.yaml migration
 

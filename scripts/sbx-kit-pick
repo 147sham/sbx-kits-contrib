@@ -6,9 +6,10 @@
 # on stdout. All prompting goes to stderr and reads from the terminal, so the
 # output can be captured by a caller (see scripts/sbx-kits.sh).
 #
-#   sbx-kit-pick             interactive checklist (arrows/j/k move, space or a
-#                            digit toggles, a all, n none, Enter confirms, q quits);
-#                            preselects the last choice, or all
+#   sbx-kit-pick             interactive checklist, preselecting the last choice
+#                            (or all). Uses gum when installed (space toggles,
+#                            ctrl+a all, Enter confirms, ctrl+c cancels); falls
+#                            back to a bash menu with the same idea otherwise.
 #   sbx-kit-pick --all       every kit, no prompt
 #   sbx-kit-pick --last      last choice again, no prompt (falls back to all)
 #   sbx-kit-pick --kits a,b  exactly these kits, no prompt (empty = none)
@@ -74,13 +75,53 @@ else
   done <"$state"
 fi
 
-# --- checklist ---------------------------------------------------------------
+# --- ui choice ---------------------------------------------------------------
+# gum (https://github.com/charmbracelet/gum) draws a proper TUI list; the bash
+# menu further down is the fallback when it is missing. SBX_KIT_PICK_UI=basic
+# forces the fallback; a keystroke file (SBX_KIT_PICK_INPUT) implies it.
+ui=${SBX_KIT_PICK_UI:-}
+if [ -z "$ui" ]; then
+  if command -v gum >/dev/null 2>&1 && [ -z "${SBX_KIT_PICK_INPUT:-}" ]; then ui=gum; else ui=basic; fi
+fi
+
+# --- gum picker ---------------------------------------------------------------
+# Each option is "<label><TAB><value>": gum shows the label (name + description)
+# and prints the value (the kit name). --selected matches on labels and is
+# comma-separated, so commas in descriptions become semicolons.
+if [ "$mode" = prompt ] && [ "$ui" = gum ] && ( : <"$tty_in" ) 2>/dev/null; then
+  tab=$'\t'
+  cols=$(tput cols 2>/dev/null || echo 120); [ "$cols" -ge 60 ] 2>/dev/null || cols=120
+  dw=$((cols - 44)); [ "$dw" -ge 12 ] || dw=12
+  labels=(); preselected=
+  for ((i = 0; i < n; i++)); do
+    label=$(printf '%-32s %s' "${kits[i]}" "$(printf '%s' "${descs[i]}" | tr ',' ';' | cut -c1-"$dw")")
+    labels+=("${label}${tab}${kits[i]}")
+    [ "${sel[i]}" = 1 ] && preselected="${preselected:+$preselected,}$label"
+  done
+  height=$n; [ "$height" -le 20 ] || height=20
+  set +e
+  out=$(gum choose --no-limit --ordered --show-help --label-delimiter="$tab" --height "$height" \
+        --header "Kits to load" --cursor "> " ${preselected:+--selected="$preselected"} \
+        "${labels[@]}" <"$tty_in")
+  rc=$?
+  set -e
+  if [ "$rc" -ne 0 ]; then echo "sbx-kit-pick: cancelled" >&2; exit 130; fi
+  for ((i = 0; i < n; i++)); do sel[i]=0; done
+  while IFS= read -r v; do
+    [ -n "$v" ] || continue
+    idx=$(index_of "$v"); [ "$idx" -ge 0 ] && sel[idx]=1
+  done <<EOF
+$out
+EOF
+fi
+
+# --- basic checklist (fallback) ------------------------------------------------
 # Prompt only when the input can actually be opened: /dev/tty exists even
 # without a controlling terminal (cron, agents), and opening it then fails.
 # Keys: up/down or k/j move, space or a digit toggles, a = all, n = none,
 # Enter confirms, q or Esc cancels. Reads single keys (raw mode when the input
 # is a terminal; a plain file of keystrokes works too, which the tests use).
-if [ "$mode" = prompt ] && ( : <"$tty_in" ) 2>/dev/null; then
+if [ "$mode" = prompt ] && [ "$ui" = basic ] && ( : <"$tty_in" ) 2>/dev/null; then
   exec 3<"$tty_in"
   raw=0
   if [ -t 3 ]; then

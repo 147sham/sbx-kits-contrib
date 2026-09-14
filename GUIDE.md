@@ -53,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/147sham/sbx-kits-contrib/main/insta
 What each step does, in order:
 
 1. **Platform check.** macOS on Apple silicon, or Linux with `/dev/kvm` accessible. Warns if `/dev/kvm` is missing or not writable (add yourself to the `kvm` group).
-2. **Prerequisites.** `git`, `jq`, `rsync`, `curl`. Installs missing ones with Homebrew, apt, or dnf.
+2. **Prerequisites.** `git`, `jq`, `rsync`, `curl`. Installs missing ones with Homebrew, apt, or dnf. Also tries to install `gum`, which draws the kit picker; if that is not possible the picker falls back to a plain menu.
 3. **`sbx`.** If absent: `brew trust docker/tap && brew install docker/tap/sbx` on macOS, or Docker's apt repository plus the `docker-sbx` package on Ubuntu. Existing installs are left alone.
 4. **Docker sign-in** (asks, skipped when already signed in). Runs `sbx login`, which opens a browser.
 5. **Kit allowlist.** `sbx` only installs kits from publishers in `kit.allowedSources`. The installer reads the current list and appends `github.com/147sham/` if missing.
@@ -103,12 +103,13 @@ Claude migrate. See [Migrating an existing sandbox](#migrating-an-existing-sandb
 [`scripts/sbx-kit-pick`](./scripts/sbx-kit-pick) lists every top-level directory that contains a `spec.yaml`, with the first line of its description:
 
 ```
-Kits to load   ↑/↓ move · space/number toggle · a all · n none · Enter confirm · q quit
-> [x]  1) claude-hide-autoupdate-warning   Suppresses Claude Code's "unable to auto-update" warning ...
-  [ ]  2) claude-playwright-mcp            Adds the Playwright MCP server (@playwright/mcp) ...
+Kits to load
+> ✓ claude-hide-autoupdate-warning   Suppresses Claude Code's "unable to auto-update" warning ...
+  • claude-playwright-mcp            Adds the Playwright MCP server (@playwright/mcp) ...
+←↓↑→ navigate • x toggle • ctrl+a select all • enter submit
 ```
 
-Move with the arrow keys (or `j`/`k`), toggle the highlighted kit with space or any kit by its number, `a` for all, `n` for none, Enter to confirm, `q` or Esc to cancel. The choice is saved to `~/.config/sbx-kits/selected` and preselected next time; the first run preselects everything. Without a usable terminal (cron, an agent running `cc`) it uses the saved selection silently.
+The list is drawn by [gum](https://github.com/charmbracelet/gum) when it is installed (the installer adds it): arrows or `j`/`k` move, space or `x` toggles, ctrl+a selects all, Enter confirms, ctrl+c cancels. Without gum a plain bash menu with the same idea takes over (space or a digit toggles, `a` all, `n` none, `q` cancels); `SBX_KIT_PICK_UI=basic` forces it. The choice is saved to `~/.config/sbx-kits/selected` and preselected next time; the first run preselects everything. Without a usable terminal (cron, an agent running `cc`) it uses the saved selection silently.
 
 Standalone flags: `--all`, `--last`, `--kits a,b` (empty means none). It prints the chosen names one per line on stdout, so it is usable from other tooling.
 
