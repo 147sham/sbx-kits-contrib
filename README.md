@@ -6,19 +6,66 @@ Each top-level directory is a **kit** — a declarative artifact containing a `s
 
 ## Quick start: shell aliases
 
-Add these to your `~/.bashrc` or `~/.zshrc`. `cc` (claude create) creates a Claude sandbox with every kit in this repo loaded, `cr` (claude run) runs Claude in the sandbox for the current directory, and `cs` (claude shell) opens a bash shell inside it:
+Add these to your `~/.bashrc` or `~/.zshrc`. `cc` (claude create) creates a Claude sandbox with every kit in this repo loaded, `cm` (claude migrate) recreates an existing sandbox with the current kits without losing its Claude memory and sessions, `cr` (claude run) runs Claude in the sandbox for the current directory, and `cs` (claude shell) opens a bash shell inside it. `cc` and `cm` need `jq` and `rsync` on the host:
 
 ```bash
-# cc — claude create: create a sandbox with all kits (append a workspace dir, e.g. `cc .`)
-alias cc="sbx create \
-  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-hide-autoupdate-warning \
-  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-playwright-mcp \
-  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-sbx-statusline \
-  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=git-ssh-sign \
-  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=github-ssh \
-  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=matt-pocock-skills \
-  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=playwright \
-  claude"
+# cc — claude create: create a sandbox with all kits (workspace dir defaults to `.`).
+# ~/.sbx-claude is passed as an extra workspace so claude-sbx-session-sync can
+# mirror the sandbox's Claude transcripts to the host (see "Tracking sandbox
+# usage with agentsview" below).
+cc() {
+  [ $# -gt 0 ] || set -- .
+  mkdir -p ~/.sbx-claude
+  sbx create \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-hide-autoupdate-warning \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-playwright-mcp \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-sbx-session-sync \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-sbx-statusline \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=git-ssh-sign \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=github-ssh \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=matt-pocock-skills \
+    --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=playwright \
+    claude "$@" ~/.sbx-claude
+}
+
+# cm — claude migrate: recreate an existing sandbox with the current kits while
+# keeping its Claude state (auto-memory, sessions, prompt history, plans,
+# settings.json keys, ~/.claude.json). Usage: `cm claude-myproject`. The new
+# sandbox gets the default name claude-<workspace basename>.
+cm() {
+  local old=$1 ws bk new
+  [ -n "$old" ] || { echo "usage: cm <sandbox-name>" >&2; return 1; }
+  ws=$(sbx ls --json | jq -r --arg n "$old" '.sandboxes[] | select(.name == $n) | .workspaces[0]')
+  [ -n "$ws" ] && [ "$ws" != null ] || { echo "cm: sandbox '$old' not found" >&2; return 1; }
+  bk=~/.sbx-claude/backup/$old
+  rm -rf "$bk" && mkdir -p "$bk/restore" ~/.sbx-claude/projects &&
+    sbx cp "$old:/home/agent/.claude" "$bk/claude" &&
+    { sbx cp "$old:/home/agent/.claude.json" "$bk/restore/claude.json" 2>/dev/null || true; } &&
+    rsync -rt --exclude=lost+found "$bk/claude/projects/" "$bk/restore/projects/" &&
+    rsync -rt "$bk/restore/projects/" ~/.sbx-claude/projects/ &&
+    { for f in history.jsonl plans settings.json; do
+        [ -e "$bk/claude/$f" ] && cp -R "$bk/claude/$f" "$bk/restore/"; done; true; } &&
+    sbx rm --force "$old" &&
+    cc "$ws" || { echo "cm: failed; backup left in $bk" >&2; return 1; }
+  new=claude-$(basename "$ws")
+  sbx cp "$bk/restore" "$new:/tmp/sbx-restore" &&
+    sbx exec -u 0 "$new" -- sh -c '
+      set -e
+      r=/tmp/sbx-restore; h=/home/agent/.claude; mkdir -p "$h"
+      [ -d "$r/projects" ] && cp -a "$r/projects/." "$h/projects/"
+      [ -d "$r/plans" ] && { mkdir -p "$h/plans"; cp -a "$r/plans/." "$h/plans/"; }
+      [ -f "$r/history.jsonl" ] && cp -a "$r/history.jsonl" "$h/"
+      # settings.json: keep old keys, but let the kits win on the keys they set.
+      [ -f "$r/settings.json" ] && { [ -f "$h/settings.json" ] || echo "{}" > "$h/settings.json";
+        jq -s ".[0] * .[1]" "$r/settings.json" "$h/settings.json" > "$h/settings.json.tmp" && mv "$h/settings.json.tmp" "$h/settings.json"; }
+      # ~/.claude.json (MCP registrations, per-project state): old values win.
+      [ -f "$r/claude.json" ] && { [ -f /home/agent/.claude.json ] || echo "{}" > /home/agent/.claude.json;
+        jq -s ".[1] * .[0]" "$r/claude.json" /home/agent/.claude.json > /tmp/claude.json.tmp && mv /tmp/claude.json.tmp /home/agent/.claude.json; }
+      chown -R agent:agent "$h" /home/agent/.claude.json
+      rm -rf "$r"' &&
+    rm -rf "$bk" &&
+    echo "cm: $old recreated as $new with Claude state restored"
+}
 
 # cr — claude run: run Claude in the sandbox for the current directory
 alias cr="sbx run claude"
@@ -26,6 +73,74 @@ alias cr="sbx run claude"
 # cs — claude shell: open a bash shell inside the sandbox for the current directory
 alias cs='sbx exec -it claude-$(basename "$PWD") -- bash'
 ```
+
+## Tracking sandbox usage with agentsview
+
+[agentsview](https://github.com/kenn-io/agentsview) is a local web UI that indexes Claude Code
+transcripts and shows sessions, full-text search, token use and cost. By default it only sees the
+host's `~/.claude/projects`; sandboxes keep their transcripts on an internal volume the host
+cannot read. The [`claude-sbx-session-sync`](./claude-sbx-session-sync) kit closes that gap by
+mirroring every sandbox's transcripts into `~/.sbx-claude/projects` on the host.
+
+### Install agentsview
+
+```console
+$ curl -fsSL https://agentsview.io/install.sh | bash
+```
+
+or with Homebrew:
+
+```console
+$ brew install --cask agentsview
+```
+
+### Point it at the sandbox mirror
+
+Create or edit `~/.agentsview/config.toml` so the Claude source lists both the host directory and
+the sandbox mirror:
+
+```toml
+[agents.claude]
+dirs = ["~/.claude/projects", "~/.sbx-claude/projects"]
+```
+
+### Run it
+
+```console
+$ agentsview serve            # foreground, opens http://127.0.0.1:8080
+$ agentsview daemon start     # or run it in the background
+```
+
+### Create sandboxes with sync enabled
+
+Use the `cc` function above. It loads the sync kit and passes `~/.sbx-claude` as an extra
+workspace, which is what makes the host directory visible inside the sandbox. Once you start a
+Claude session in the sandbox, its transcript shows up under the matching project in agentsview
+within about 20 seconds, and keeps updating live while the session runs.
+
+If you create sandboxes by hand instead, the equivalent is:
+
+```console
+$ sbx create --kit "git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-sbx-session-sync" \
+    claude . ~/.sbx-claude
+```
+
+The extra path has to be given at `sbx create` time. Sandboxes created without it will not sync,
+even if the kit is added later with `sbx kit add`. To bring an existing sandbox across without
+losing its auto-memory, sessions, prompt history, plans and settings, use `cm`:
+
+```console
+$ cm claude-myproject
+```
+
+It backs up the sandbox's `~/.claude` to the host, seeds `~/.sbx-claude/projects` with its
+transcripts so agentsview sees the history straight away, removes the sandbox, recreates it with
+`cc`, and restores the state into the new one (kit-managed settings keys win over old ones, so
+the status line and auto-updater settings stay current). The sandbox is auto-started if it is
+stopped, and the new sandbox takes the default name `claude-<workspace basename>`.
+
+Sessions from every sandbox land in one tree and are never deleted from the host, so agentsview
+keeps the history of sandboxes you have since removed. Delete `~/.sbx-claude` to drop it.
 
 ## Documentation
 

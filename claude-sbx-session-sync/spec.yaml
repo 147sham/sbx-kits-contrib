@@ -1,0 +1,74 @@
+schemaVersion: "1"
+kind: mixin
+name: claude-sbx-session-sync
+displayName: Claude Code Session Sync
+description: Mirrors the sandbox's Claude Code transcripts (~/.claude/projects) to the host so tools like agentsview can show usage across every sandbox. Expects the host directory ~/.sbx-claude to be passed to `sbx create` as an extra workspace; a background startup loop finds that mount and rsyncs into <mount>/projects every 20 seconds (override with SANDBOX_SESSION_SYNC_INTERVAL). Without the mount the kit is a no-op. Sessions from all sandboxes merge into one tree and are never deleted from the host, so history outlives the sandbox.
+
+requires:
+  agent: claude
+
+environment:
+  variables:
+    # Seconds between rsync passes. Last-wins across kits, so a later --kit can
+    # override it.
+    SANDBOX_SESSION_SYNC_INTERVAL: "20"
+
+commands:
+  install:
+    # Written at install time (runs once, before startup) so the startup hook
+    # below has a well-defined file to launch regardless of files/ copy order.
+    - command: |
+        set -euo pipefail
+        cat > /usr/local/bin/sbx-session-sync <<'EOF'
+        #!/usr/bin/env bash
+        # Mirror this sandbox's Claude Code transcripts to the host.
+        #
+        # The host directory ~/.sbx-claude is passed to `sbx create` as an extra
+        # workspace, so it appears inside the sandbox at its host path (virtiofs).
+        # Locate it via /proc/mounts rather than globbing /Users or /home, then
+        # rsync ~/.claude/projects into <mount>/projects on a loop.
+        #
+        # No --delete: sessions from several sandboxes (and from sandboxes since
+        # removed) accumulate in one tree, which is the point for a usage viewer.
+        # Session files are UUID-named, so two sandboxes on the same workspace
+        # never collide.
+        src=/home/agent/.claude/projects
+        interval=${SANDBOX_SESSION_SYNC_INTERVAL:-20}
+        log=/tmp/sbx-session-sync.log
+
+        mount=$(awk '$3 == "virtiofs" && $2 ~ /\/\.sbx-claude$/ { print $2; exit }' /proc/mounts)
+        if [ -z "$mount" ]; then
+          echo "$(date -Is) no ~/.sbx-claude workspace mounted; pass it to sbx create to enable session sync" >> "$log"
+          exit 0
+        fi
+
+        dest="$mount/projects"
+        mkdir -p "$dest"
+        echo "$(date -Is) syncing $src -> $dest every ${interval}s" >> "$log"
+        while :; do
+          if [ -d "$src" ]; then
+            # projects/ is an ext4 volume inside the sandbox; skip its lost+found.
+            rsync -rt --no-owner --no-group --exclude=lost+found "$src/" "$dest/" >> "$log" 2>&1 || true
+          fi
+          sleep "$interval"
+        done
+        EOF
+        chmod 755 /usr/local/bin/sbx-session-sync
+      user: "0"
+      description: Write the sbx-session-sync loop to /usr/local/bin
+  startup:
+    - command: ["/usr/local/bin/sbx-session-sync"]
+      user: "1000"
+      background: true
+      description: Mirror ~/.claude/projects to the ~/.sbx-claude host mount on a loop (no-op when the mount is absent)
+
+agentContext: |
+  ## Session sync to the host
+
+  A background loop mirrors this sandbox's Claude Code transcripts
+  (~/.claude/projects) into the host directory ~/.sbx-claude/projects every
+  20 seconds, so the user can see usage and sessions across all sandboxes
+  from the host (for example in agentsview). It only runs when the host
+  passed ~/.sbx-claude to `sbx create` as an extra workspace; otherwise it
+  exits at startup. Nothing is deleted on the host side. The loop's log is
+  /tmp/sbx-session-sync.log.
