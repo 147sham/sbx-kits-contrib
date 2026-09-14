@@ -6,7 +6,7 @@ renders where you are and what the session is costing:
 
 ```
 🐳 Docker Sandboxes · claude-ava · ~/Documents/projs/ava (main*)
-Fable 5 · effort xhigh · ctx ████████░░ 82%/1000k · 5h ████░░░░░░ 39% ↻ 2h13m · 7d ██░░░░░░░░ 23% ↻ 3d04h · $307.72
+Fable 5 · effort xhigh · ctx ████████░░ 82%/1000k · 5h ████░░░░░░ 39% ↻ 15:05 · 7d ██░░░░░░░░ 23% ↻ 3d04h · $307.72
 ```
 
 ## What you get
@@ -20,7 +20,7 @@ Fable 5 · effort xhigh · ctx ████████░░ 82%/1000k · 5h �
 | 2 | model | the active model's display name |
 | 2 | effort | the reasoning effort level (`low` to `max`); hidden when the model has no effort setting |
 | 2 | context | ten-cell bar and percentage of the context window used, plus the window size in k tokens |
-| 2 | 5h / 7d | bars and percentages of the 5-hour and 7-day quota used (claude.ai subscribers only; blank on API-key auth). Each adds `↻` and the time until that window resets (`2h13m`, `3d04h`) |
+| 2 | 5h / 7d | bars and percentages of the 5-hour and 7-day quota used (claude.ai subscribers only; blank on API-key auth). The 5h segment adds `↻ 15:05`, the clock time (host timezone) at which that window resets; the 7d one adds `↻ 3d04h`, the time remaining |
 | 2 | cost | session cost so far in USD |
 
 Context and quota bars turn yellow at 50% and red at 80%, with the unused part dimmed. They use the same block characters as Claude Code's own `/usage` view.

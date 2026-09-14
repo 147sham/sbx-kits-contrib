@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code status line for Docker Sandboxes (two lines).
 #   line 1:  🐳 Docker Sandboxes · SANDBOX · ~/path/to/workspace (branch*)
-#   line 2:  MODEL · effort LEVEL · ctx ████░░ NN%/Wk · 5h ████░░ NN% ↻ 2h13m · 7d ████░░ NN% ↻ 3d04h · $COST
+#   line 2:  MODEL · effort LEVEL · ctx ████░░ NN%/Wk · 5h ████░░ NN% ↻ 15:05 · 7d ████░░ NN% ↻ 3d04h · $COST
 # Receives the session JSON on stdin. Runs on every render, so each segment
 # stays cheap: one jq pass, one or two git calls, no network.
 
@@ -57,6 +57,17 @@ until_str() {
   else printf '%dm' $((rem / 60)); fi
 }
 
+# at_str EPOCH -> "15:05", the wall-clock time (in $TZ, which sbx sets from the
+# host) at which the epoch falls; empty when past or unknown. GNU date takes
+# -d @epoch, BSD/macOS date takes -r epoch.
+at_str() {
+  local now
+  case $1 in ''|null) return ;; esac
+  now=$(date +%s)
+  [ "${1%.*}" -gt "$now" ] || return
+  date -d "@${1%.*}" +%H:%M 2>/dev/null || date -r "${1%.*}" +%H:%M 2>/dev/null
+}
+
 # join SEGMENTS... -> non-empty segments separated by " · "
 join() {
   local out="" s
@@ -106,13 +117,14 @@ if [ -n "$pct" ] && [ "$pct" != "null" ]; then
   ctx_seg="${c}ctx $(bar "$p")${c} ${p}%${DIM}/${winsz}k${RST}"
 fi
 
-# --- 5h and 7d quota bars (claude.ai subscribers only), each with time to reset ---
+# --- 5h and 7d quota bars (claude.ai subscribers only); 5h shows the reset
+# clock time, 7d the time remaining ---
 q5h_seg=""
 if [ -n "$q5h" ] && [ "$q5h" != "null" ]; then
   p5=${q5h%.*}; qc=$(level "$p5")
   q5h_seg="${qc}5h $(bar "$p5")${qc} ${p5}%${RST}"
-  left=$(until_str "$q5h_reset")
-  [ -n "$left" ] && q5h_seg="${q5h_seg} ${DIM}↻ ${left}${RST}"
+  at=$(at_str "$q5h_reset")
+  [ -n "$at" ] && q5h_seg="${q5h_seg} ${DIM}↻ ${at}${RST}"
 fi
 q7d_seg=""
 if [ -n "$q7d" ] && [ "$q7d" != "null" ]; then
