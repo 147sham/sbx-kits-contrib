@@ -2,51 +2,42 @@ schemaVersion: "1"
 kind: mixin
 name: claude-sbx-statusline
 displayName: Claude Code Status Line
-description: Adds the claude-powerline status line (@owloops/claude-powerline) to Claude Code — a vim-style powerline bar showing directory, git branch, model, session tokens, today/block cost and context usage. Installs the CLI globally so each render is a local exec rather than an npx download, ships a tuned ~/.claude/claude-powerline.json, and sets the statusLine key in ~/.claude/settings.json, merging so every other setting is preserved (an existing statusLine is intentionally replaced, since installing this status line is the point of the kit).
+description: Adds a two-line Claude Code status line tailored to Docker Sandboxes. Line one shows the Docker whale, the sandbox name (container hostname), the workspace path with the home prefix collapsed to ~, and the git branch with a dirty marker. Line two shows the model, context-window usage, 5-hour and 7-day quota usage, and session cost. Ships a self-contained bash script (jq + git only, no npm, no network) to ~/.claude/statusline.sh and sets the statusLine key in ~/.claude/settings.json, merging so every other setting is preserved (an existing statusLine is intentionally replaced, since installing this status line is the point of the kit).
 
-caps:
-  network:
-    allow:
-      # @owloops/claude-powerline from npm (install time only — the status line
-      # itself renders from local session files and needs no network)
-      - "registry.npmjs.org:443"
-      - "*.npmjs.org:443"
+requires:
+  agent: claude
 
 commands:
   install:
     - command: |
         set -euo pipefail
-        npm install -g @owloops/claude-powerline@latest
-        # Resolve the binary now and record an absolute path in settings.json:
-        # root's global npm prefix isn't necessarily the agent's, so don't rely
-        # on the bare name being on the agent's PATH at render time.
-        bin=$(command -v claude-powerline || true)
-        [ -n "$bin" ] || bin="$(npm prefix -g)/bin/claude-powerline"
-        [ -x "$bin" ]
         mkdir -p /home/agent/.claude
         f=/home/agent/.claude/settings.json
         [ -f "$f" ] || echo '{}' > "$f"
         # Set only the statusLine key (any existing one is replaced by design);
         # the jq merge leaves all other settings untouched. Temp file lives in the
         # same dir as $f so the mv below is an atomic rename, not a cross-fs copy.
-        # No --style flag: ~/.claude/claude-powerline.json is the single source of
-        # truth, and a CLI flag would silently outrank anything edited there.
+        # Invoke via bash so the script works even if the copied file loses its
+        # executable bit.
         tmp=$(mktemp -p /home/agent/.claude)
-        jq --arg cmd "$bin" '.statusLine = {type: "command", command: $cmd}' "$f" > "$tmp"
+        jq '.statusLine = {type: "command", command: "bash /home/agent/.claude/statusline.sh"}' "$f" > "$tmp"
         mv "$tmp" "$f"
         chown -R agent:agent /home/agent/.claude
       user: "0"
-      description: Install @owloops/claude-powerline globally and point the statusLine key in ~/.claude/settings.json at it (jq merge, so all other keys are preserved; any existing statusLine is replaced by design)
+      description: Point the statusLine key in ~/.claude/settings.json at the shipped ~/.claude/statusline.sh (jq merge, so all other keys are preserved; any existing statusLine is replaced by design)
 
 agentContext: |
   ## Status line
 
-  This sandbox renders the Claude Code status line with **claude-powerline**
-  (`@owloops/claude-powerline`, installed globally), registered under
-  `statusLine` in ~/.claude/settings.json. It shows the working directory, git
-  branch, model, session tokens, today/block cost, and context-window usage.
+  This sandbox renders a two-line Claude Code status line from
+  ~/.claude/statusline.sh, registered under `statusLine` in
+  ~/.claude/settings.json. Line one shows the Docker whale, the sandbox name
+  (the container hostname), the workspace path with the home prefix collapsed
+  to ~, and the git branch with a `*` when the tree is dirty. Line two shows
+  the model, context-window usage as a percentage of the window size, the
+  5-hour and 7-day quota usage (claude.ai subscribers only; blank otherwise),
+  and the session cost so far.
 
-  Its configuration is ~/.claude/claude-powerline.json (segments, theme,
-  display style, budget thresholds). Edit that file to change what the bar
-  shows — changes are picked up on the next render, no restart needed. The
-  status line reads local session files only; it makes no network calls.
+  The script reads the session JSON Claude Code passes on stdin and needs only
+  jq and git. It makes no network calls. Edit ~/.claude/statusline.sh to change
+  segments or colours; the next render picks the change up, no restart needed.

@@ -11,13 +11,13 @@ Add these to your `~/.bashrc` or `~/.zshrc`. `cc` (claude create) creates a Clau
 ```bash
 # cc — claude create: create a sandbox with all kits (append a workspace dir, e.g. `cc .`)
 alias cc="sbx create \
-  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-hide-autoupdate-warning \
-  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-playwright-mcp \
-  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=claude-sbx-statusline \
-  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=git-ssh-sign \
-  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=github-ssh \
-  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=matt-pocock-skills \
-  --kit git+https://github.com/pbexe/sbx-kits-contrib.git#dir=playwright \
+  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-hide-autoupdate-warning \
+  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-playwright-mcp \
+  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-sbx-statusline \
+  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=git-ssh-sign \
+  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=github-ssh \
+  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=matt-pocock-skills \
+  --kit git+https://github.com/147sham/sbx-kits-contrib.git#dir=playwright \
   claude"
 
 # cr — claude run: run Claude in the sandbox for the current directory

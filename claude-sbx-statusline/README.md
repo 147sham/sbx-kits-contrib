@@ -1,29 +1,31 @@
 # claude-sbx-statusline
 
-A [Claude Code status line](https://docs.claude.com/en/docs/claude-code/statusline) for Docker
-Sandboxes, built on [claude-powerline](https://powerline.owloops.com/)
-([`@owloops/claude-powerline`](https://github.com/Owloops/claude-powerline)). Compose this mixin
-onto the built-in `claude` agent and every session renders a vim-style powerline bar of where you
-are and what the session is costing.
+A two-line [Claude Code status line](https://docs.claude.com/en/docs/claude-code/statusline)
+for Docker Sandboxes. Compose this mixin onto the built-in `claude` agent and every session
+renders where you are and what the session is costing:
+
+```
+🐳 Docker Sandboxes · claude-ava · ~/Documents/projs/ava (main*)
+Fable 5 · ctx 82%/1000k · 5h 39% · 7d 23% · $307.72
+```
 
 ## What you get
 
-A single powerline row in the `tokyo-night` theme, with these segments:
+| Line | Segment | Shows |
+| --- | --- | --- |
+| 1 | whale + label | `🐳 Docker Sandboxes`, so a sandbox session is unmistakable |
+| 1 | sandbox | the sandbox name, read from the container hostname |
+| 1 | directory | the workspace path, with the host home prefix collapsed to `~` |
+| 1 | git | the branch, with a red `*` when the working tree is dirty; blank outside a repo |
+| 2 | model | the active model's display name |
+| 2 | context | context-window usage as a percentage, plus the window size in k tokens |
+| 2 | 5h / 7d | the 5-hour and 7-day quota usage (claude.ai subscribers only; blank on API-key auth) |
+| 2 | cost | session cost so far in USD |
 
-| Segment | Shows |
-| --- | --- |
-| directory | current directory (basename only) |
-| git | branch, with a dirty marker |
-| model | active model |
-| session | tokens used this session |
-| today | today's cost, against a $50 budget |
-| block | current 5-hour block cost + burn rate, against a $15 budget |
-| context | context-window usage (33k autocompact buffer reserved) |
-| agent | active agent |
+Context and quota segments turn yellow at 50% and red at 80%.
 
-Budget segments turn red past 80% of their threshold. The `weekly`, `version`, `tmux`,
-`sessionId`, `metrics`, `thinking`, `cacheTimer` and `outputStyle` segments ship disabled —
-flip `enabled` to `true` in the config to add them.
+The permission-mode line Claude Code draws below the status line (`bypass permissions on`,
+background agent count) is Claude Code's own UI and needs no configuration here.
 
 ## Quick start
 
@@ -33,64 +35,41 @@ Pair the mixin with the `claude` agent via `--kit`:
 $ sbx run claude --kit ./claude-sbx-statusline .
 ```
 
-Or pull it straight from this repo (pinned by ref):
+Or pull it straight from this repo:
 
 ```console
-$ sbx run claude --kit "git+https://github.com/docker/sbx-kits-contrib.git#dir=claude-sbx-statusline" .
+$ sbx run claude --kit "git+https://github.com/147sham/sbx-kits-contrib.git#dir=claude-sbx-statusline" .
 ```
 
 ## Configuration
 
-The kit ships its config to **`~/.claude/claude-powerline.json`** — the user-level path
-claude-powerline looks for. Edit it in a running sandbox to change theme, display style, segments,
-or budgets; the next render picks the change up, no restart needed.
-
-claude-powerline searches, in priority order:
-
-1. `./.claude-powerline.json` (per-project — overrides the kit's file)
-2. `~/.claude/claude-powerline.json` (what this kit writes)
-3. `~/.config/claude-powerline/config.json`
-
-`CLAUDE_POWERLINE_THEME`, `CLAUDE_POWERLINE_STYLE` and `CLAUDE_POWERLINE_CONFIG` override the
-config file; CLI flags override those. Themes: `dark`, `light`, `nord`, `tokyo-night`,
-`rose-pine`, `gruvbox`, `custom`. Styles: `minimal`, `powerline`, `capsule`, `tui`.
-
-> [!NOTE]
-> The config sets `"charset": "unicode"`, so the segment separators and icons need a
-> [Nerd Font](https://www.nerdfonts.com/) in **your terminal** (the font is a host-side thing —
-> the sandbox can't supply it). Without one you'll see tofu boxes; set `"charset": "text"` for
-> ASCII-only output instead.
+Everything lives in **`~/.claude/statusline.sh`** inside the sandbox. It is a plain bash script:
+edit the `join` calls at the bottom to reorder or drop segments, or the colour variables near
+the top to restyle. The next render picks the change up, no restart needed.
 
 ## How it works
 
-- **The `install` hook** (run as root) does two things:
+- **`files/home/.claude/statusline.sh`** is copied to `~/.claude/statusline.sh` at sandbox start.
+  It reads the session JSON Claude Code pipes to the status line command, pulls every field in
+  a single `jq` pass, runs two `git` commands for the branch and dirty state, and prints two
+  lines. No npm packages, no network calls.
+- **The `install` hook** (run as root) merges the `statusLine` block into `~/.claude/settings.json`
+  with `jq`:
 
-  1. `npm install -g @owloops/claude-powerline@latest`. Upstream suggests `npx -y …` as the
-     status line command, but that re-resolves the package on every render; a global install
-     makes each render a local exec. It also means the status line keeps working if npm is
-     unreachable later — rendering itself reads local session files and needs no network.
-  2. Merges the `statusLine` block into `~/.claude/settings.json` with `jq`:
+  ```json
+  {
+    "statusLine": { "type": "command", "command": "bash /home/agent/.claude/statusline.sh" }
+  }
+  ```
 
-     ```json
-     {
-       "statusLine": { "type": "command", "command": "/usr/local/bin/claude-powerline" }
-     }
-     ```
-
-     The exact path is whatever `command -v claude-powerline` resolves to at install time —
-     root's global npm prefix isn't necessarily the agent's, so the absolute path is recorded
-     rather than trusting the bare name to be on the agent's `PATH`. No `--style` flag is
-     passed, so `claude-powerline.json` stays the single source of truth (a CLI flag would
-     silently outrank anything you edit there).
-
-  The hook creates `settings.json` if missing and leaves every other key untouched — only
-  `statusLine` is set (replacing a prior one if present) — then `chown`s `~/.claude` back to the
-  `agent` user. Re-running is idempotent. The temp file is created inside `~/.claude` so the final
-  `mv` is an atomic same-filesystem rename rather than a cross-device copy.
-- **`files/home/.claude/claude-powerline.json`** is copied to `~/.claude/claude-powerline.json`
-  at sandbox start.
+  The script is invoked via `bash` so it works even if the copy loses its executable bit. The
+  hook creates `settings.json` if missing and leaves every other key untouched (only
+  `statusLine` is set, replacing a prior one if present), then `chown`s `~/.claude` back to
+  the `agent` user. Re-running is idempotent. The temp file is created inside `~/.claude` so the
+  final `mv` is an atomic same-filesystem rename rather than a cross-device copy.
 
 ## Requirements
 
-`node` (≥ 18), `npm` and `jq` — all present on the `claude-code` base image. The install hook
-needs `registry.npmjs.org` reachable, which the kit's `caps.network` block requests.
+`bash`, `jq` and `git`, all present on the `claude-code` base image. The kit declares no network
+domains because nothing is downloaded. It declares `requires.agent: claude` and will error if
+composed onto any other base agent.
