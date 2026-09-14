@@ -6,7 +6,14 @@ Each top-level directory is a **kit** — a declarative artifact containing a `s
 
 ## Quick start: shell aliases
 
-Add these to your `~/.bashrc` or `~/.zshrc`. `cc` (claude create) creates a Claude sandbox with every kit in this repo loaded, `cm` (claude migrate) recreates an existing sandbox with the current kits without losing its Claude memory and sessions, `cr` (claude run) runs Claude in the sandbox for the current directory, and `cs` (claude shell) opens a bash shell inside it. `cc` and `cm` need `jq` and `rsync` on the host:
+One-time setup: `sbx` only installs kits from publishers in its allowlist, so add this repo's
+owner (keep whatever is already listed; `sbx settings get kit.allowedSources` shows it):
+
+```console
+$ sbx settings set kit.allowedSources '["docker.io/","github.com/147sham/"]'
+```
+
+Then add these to your `~/.bashrc` or `~/.zshrc`. `cc` (claude create) creates a Claude sandbox with every kit in this repo loaded, `cm` (claude migrate) recreates an existing sandbox with the current kits without losing its Claude memory and sessions, `cr` (claude run) runs Claude in the sandbox for the current directory, and `cs` (claude shell) opens a bash shell inside it. `cc` and `cm` need `jq` and `rsync` on the host:
 
 ```bash
 # cc — claude create: create a sandbox with all kits (workspace dir defaults to `.`).
@@ -31,22 +38,31 @@ cc() {
 # cm — claude migrate: recreate an existing sandbox with the current kits while
 # keeping its Claude state (auto-memory, sessions, prompt history, plans,
 # settings.json keys, ~/.claude.json). Usage: `cm claude-myproject`. The new
-# sandbox gets the default name claude-<workspace basename>.
+# sandbox gets the default name claude-<workspace basename>. If the create or
+# restore step fails, the backup stays in ~/.sbx-claude/backup/<name>; fix the
+# cause and re-run the same `cm` command to resume from it.
 cm() {
   local old=$1 ws bk new
   [ -n "$old" ] || { echo "usage: cm <sandbox-name>" >&2; return 1; }
-  ws=$(sbx ls --json | jq -r --arg n "$old" '.sandboxes[] | select(.name == $n) | .workspaces[0]')
-  [ -n "$ws" ] && [ "$ws" != null ] || { echo "cm: sandbox '$old' not found" >&2; return 1; }
   bk=~/.sbx-claude/backup/$old
-  rm -rf "$bk" && mkdir -p "$bk/restore" ~/.sbx-claude/projects &&
-    sbx cp "$old:/home/agent/.claude" "$bk/claude" &&
-    { sbx cp "$old:/home/agent/.claude.json" "$bk/restore/claude.json" 2>/dev/null || true; } &&
-    rsync -rt --exclude=lost+found "$bk/claude/projects/" "$bk/restore/projects/" &&
-    rsync -rt "$bk/restore/projects/" ~/.sbx-claude/projects/ &&
-    { for f in history.jsonl plans settings.json; do
-        [ -e "$bk/claude/$f" ] && cp -R "$bk/claude/$f" "$bk/restore/"; done; true; } &&
-    sbx rm --force "$old" &&
-    cc "$ws" || { echo "cm: failed; backup left in $bk" >&2; return 1; }
+  ws=$(sbx ls --json | jq -r --arg n "$old" '.sandboxes[] | select(.name == $n) | .workspaces[0]')
+  if [ -n "$ws" ] && [ "$ws" != null ]; then
+    rm -rf "$bk" && mkdir -p "$bk/restore" ~/.sbx-claude/projects &&
+      sbx cp "$old:/home/agent/.claude" "$bk/claude" &&
+      { sbx cp "$old:/home/agent/.claude.json" "$bk/restore/claude.json" 2>/dev/null || true; } &&
+      rsync -rt --exclude=lost+found "$bk/claude/projects/" "$bk/restore/projects/" &&
+      rsync -rt "$bk/restore/projects/" ~/.sbx-claude/projects/ &&
+      { for f in history.jsonl plans settings.json; do
+          [ -e "$bk/claude/$f" ] && cp -R "$bk/claude/$f" "$bk/restore/"; done; true; } &&
+      printf '%s' "$ws" > "$bk/workspace" &&
+      sbx rm --force "$old" || { echo "cm: backup failed; '$old' was not removed" >&2; return 1; }
+  elif [ -f "$bk/workspace" ]; then
+    ws=$(cat "$bk/workspace")
+    echo "cm: '$old' is already removed; resuming from backup in $bk"
+  else
+    echo "cm: sandbox '$old' not found and no backup in $bk" >&2; return 1
+  fi
+  cc "$ws" || { echo "cm: create failed; backup kept in $bk — fix the cause and re-run: cm $old" >&2; return 1; }
   new=claude-$(basename "$ws")
   sbx cp "$bk/restore" "$new:/tmp/sbx-restore" &&
     sbx exec -u 0 "$new" -- sh -c '
