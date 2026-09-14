@@ -2,7 +2,7 @@ schemaVersion: "1"
 kind: mixin
 name: claude-sbx-statusline
 displayName: Claude Code Status Line
-description: Adds a two-line Claude Code status line tailored to Docker Sandboxes. Line one shows the Docker whale, the sandbox name (container hostname), the workspace path with the home prefix collapsed to ~, and the git branch with a dirty marker. Line two shows the model, effort level, a context-window bar, 5-hour and 7-day quota bars (with time until the 5h window resets), and session cost. Ships a self-contained bash script (jq + git only, no npm, no network) to ~/.claude/statusline.sh and sets the statusLine key in ~/.claude/settings.json, merging so every other setting is preserved (an existing statusLine is intentionally replaced, since installing this status line is the point of the kit).
+description: Adds a two-line Claude Code status line tailored to Docker Sandboxes. Line one shows the Docker whale, the sandbox name (container hostname), the workspace path with the home prefix collapsed to ~, and the git branch with a dirty marker. Line two shows the model, effort level, a context-window bar, 5-hour and 7-day quota bars (each with time until its window resets), and session cost. Ships a self-contained bash script (jq + git only, no npm, no network) to ~/.claude/statusline.sh and sets the statusLine key in ~/.claude/settings.json, merging so every other setting is preserved (an existing statusLine is intentionally replaced, since installing this status line is the point of the kit).
 
 requires:
   agent: claude
@@ -35,8 +35,8 @@ agentContext: |
   (the container hostname), the workspace path with the home prefix collapsed
   to ~, and the git branch with a `*` when the tree is dirty. Line two shows
   the model, the reasoning effort level, a context-window bar with percentage,
-  5-hour and 7-day quota bars (claude.ai subscribers only; blank otherwise; the
-  5h one shows time until the window resets), and the session cost so far.
+  5-hour and 7-day quota bars (claude.ai subscribers only; blank otherwise; each
+  shows time until its window resets), and the session cost so far.
 
   The script reads the session JSON Claude Code passes on stdin and needs only
   jq and git. It makes no network calls. Edit ~/.claude/statusline.sh to change

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code status line for Docker Sandboxes (two lines).
 #   line 1:  🐳 Docker Sandboxes · SANDBOX · ~/path/to/workspace (branch*)
-#   line 2:  MODEL · effort LEVEL · ctx ████░░ NN%/Wk · 5h ████░░ NN% ↻ 2h13m · 7d ████░░ NN% · $COST
+#   line 2:  MODEL · effort LEVEL · ctx ████░░ NN%/Wk · 5h ████░░ NN% ↻ 2h13m · 7d ████░░ NN% ↻ 3d04h · $COST
 # Receives the session JSON on stdin. Runs on every render, so each segment
 # stays cheap: one jq pass, one or two git calls, no network.
 
@@ -10,7 +10,7 @@ input=$(cat)
 # One jq pass extracts every field (one per line); renders run often, so avoid
 # re-forking jq. Line-per-field read preserves empty fields (tab-splitting would
 # collapse leading blanks, since tab is IFS whitespace).
-{ read -r dir; read -r model; read -r effort; read -r pct; read -r winsz; read -r cost; read -r q5h; read -r q5h_reset; read -r q7d; } < <(printf '%s' "$input" | jq -r '
+{ read -r dir; read -r model; read -r effort; read -r pct; read -r winsz; read -r cost; read -r q5h; read -r q5h_reset; read -r q7d; read -r q7d_reset; } < <(printf '%s' "$input" | jq -r '
   .workspace.current_dir // .cwd // "",
   .model.display_name // "",
   .effort.level // "",
@@ -19,7 +19,8 @@ input=$(cat)
   .cost.total_cost_usd // 0,
   .rate_limits.five_hour.used_percentage // "",
   .rate_limits.five_hour.resets_at // "",
-  .rate_limits.seven_day.used_percentage // ""')
+  .rate_limits.seven_day.used_percentage // "",
+  .rate_limits.seven_day.resets_at // ""')
 [ -z "$dir" ] && dir=$(pwd)
 
 # ANSI colours
@@ -45,13 +46,14 @@ level() {
   else printf '%s' "$GREEN"; fi
 }
 
-# until_str EPOCH -> "2h13m" / "45m" remaining; empty when past or unknown
+# until_str EPOCH -> "3d04h" / "2h13m" / "45m" remaining; empty when past or unknown
 until_str() {
   local now rem
   case $1 in ''|null) return ;; esac
   now=$(date +%s); rem=$(( ${1%.*} - now ))
   [ "$rem" -gt 0 ] || return
-  if [ "$rem" -ge 3600 ]; then printf '%dh%02dm' $((rem / 3600)) $((rem % 3600 / 60))
+  if   [ "$rem" -ge 86400 ]; then printf '%dd%02dh' $((rem / 86400)) $((rem % 86400 / 3600))
+  elif [ "$rem" -ge 3600 ]; then printf '%dh%02dm' $((rem / 3600)) $((rem % 3600 / 60))
   else printf '%dm' $((rem / 60)); fi
 }
 
@@ -104,7 +106,7 @@ if [ -n "$pct" ] && [ "$pct" != "null" ]; then
   ctx_seg="${c}ctx $(bar "$p")${c} ${p}%${DIM}/${winsz}k${RST}"
 fi
 
-# --- 5h and 7d quota bars (claude.ai subscribers only); 5h shows time to reset ---
+# --- 5h and 7d quota bars (claude.ai subscribers only), each with time to reset ---
 q5h_seg=""
 if [ -n "$q5h" ] && [ "$q5h" != "null" ]; then
   p5=${q5h%.*}; qc=$(level "$p5")
@@ -116,6 +118,8 @@ q7d_seg=""
 if [ -n "$q7d" ] && [ "$q7d" != "null" ]; then
   p7=${q7d%.*}; qc=$(level "$p7")
   q7d_seg="${qc}7d $(bar "$p7")${qc} ${p7}%${RST}"
+  left=$(until_str "$q7d_reset")
+  [ -n "$left" ] && q7d_seg="${q7d_seg} ${DIM}↻ ${left}${RST}"
 fi
 
 # --- Session cost ---
