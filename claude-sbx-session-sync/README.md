@@ -30,7 +30,8 @@ sandbox rsyncs the transcripts into it.
    $ sbx run claude
    ```
 
-   The `cc` function in the repo README does both steps for you.
+   The `cc` helper from the repo README does both steps for you whenever this kit is ticked in
+   its kit picker.
 
 3. Transcripts appear on the host within about 20 seconds of activity:
 

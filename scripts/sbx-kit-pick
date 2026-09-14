@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Interactive kit picker for sbx-kits-contrib.
+#
+# Discovers every kit directory in the repo (any top-level dir with a
+# spec.yaml), shows a checklist, and prints the chosen kit names one per line
+# on stdout. All prompting goes to stderr and reads from the terminal, so the
+# output can be captured by a caller (see scripts/sbx-kits.sh).
+#
+#   sbx-kit-pick             checklist; preselects the last choice, or all
+#   sbx-kit-pick --all       every kit, no prompt
+#   sbx-kit-pick --last      last choice again, no prompt (falls back to all)
+#   sbx-kit-pick --kits a,b  exactly these kits, no prompt (empty = none)
+#
+# The last choice is saved to ~/.config/sbx-kits/selected (override with
+# SBX_KITS_STATE). When no terminal is available the checklist is skipped and
+# the default selection is used.
+set -euo pipefail
+
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+state=${SBX_KITS_STATE:-$HOME/.config/sbx-kits/selected}
+tty_in=${SBX_KIT_PICK_INPUT:-/dev/tty}
+
+usage() { sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; }
+
+mode=prompt
+explicit=
+have_explicit=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --all)    mode=all ;;
+    --last)   mode=last ;;
+    --kits)   explicit=${2-}; have_explicit=1; shift ;;
+    --kits=*) explicit=${1#--kits=}; have_explicit=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "sbx-kit-pick: unknown option: $1" >&2; usage; exit 2 ;;
+  esac
+  shift
+done
+
+# --- discover kits -----------------------------------------------------------
+kits=(); descs=()
+for spec in "$repo"/*/spec.yaml; do
+  [ -f "$spec" ] || continue
+  kits+=("$(basename "$(dirname "$spec")")")
+  # First line of the description, unquoted, trimmed to fit the checklist.
+  descs+=("$(sed -n 's/^description: *//p' "$spec" | head -1 | sed 's/^"//; s/"$//' | cut -c1-72)")
+done
+n=${#kits[@]}
+[ "$n" -gt 0 ] || { echo "sbx-kit-pick: no kits found under $repo" >&2; exit 1; }
+
+index_of() { # name -> index, or -1
+  local i; for ((i = 0; i < n; i++)); do [ "${kits[i]}" = "$1" ] && { echo "$i"; return; }; done; echo -1
+}
+
+# --- default selection -------------------------------------------------------
+sel=(); for ((i = 0; i < n; i++)); do sel[i]=0; done
+
+if [ "$have_explicit" = 1 ]; then
+  # Split on commas/spaces by hand: bash 3.2 (macOS) trips set -u on an
+  # empty array, and --kits "" legitimately means "no kits".
+  for k in $(printf '%s' "$explicit" | tr ',' ' '); do
+    idx=$(index_of "$k")
+    [ "$idx" -ge 0 ] || { echo "sbx-kit-pick: unknown kit '$k' (have: ${kits[*]})" >&2; exit 2; }
+    sel[idx]=1
+  done
+  mode=fixed
+elif [ "$mode" = all ] || [ ! -f "$state" ]; then
+  for ((i = 0; i < n; i++)); do sel[i]=1; done
+else
+  while IFS= read -r k; do
+    idx=$(index_of "$k"); [ "$idx" -ge 0 ] && sel[idx]=1
+  done <"$state"
+fi
+
+# --- checklist ---------------------------------------------------------------
+# Prompt only when the input can actually be opened: /dev/tty exists even
+# without a controlling terminal (cron, agents), and opening it then fails.
+if [ "$mode" = prompt ] && ( : <"$tty_in" ) 2>/dev/null; then
+  # Open the input once; reopening per read would restart a file from line 1.
+  exec 3<"$tty_in"
+  while :; do
+    {
+      echo
+      echo "Kits to load (numbers toggle, a = all, n = none, Enter = confirm):"
+      for ((i = 0; i < n; i++)); do
+        mark='[ ]'; [ "${sel[i]}" = 1 ] && mark='[x]'
+        printf '  %s %2d) %-32s %s\n' "$mark" $((i + 1)) "${kits[i]}" "${descs[i]}"
+      done
+      printf '> '
+    } >&2
+    IFS= read -r line <&3 || break
+    case $line in
+      '') break ;;
+      a|A) for ((i = 0; i < n; i++)); do sel[i]=1; done ;;
+      n|N) for ((i = 0; i < n; i++)); do sel[i]=0; done ;;
+      *)
+        for tok in $line; do
+          if [[ $tok =~ ^[0-9]+$ ]] && [ "$tok" -ge 1 ] && [ "$tok" -le "$n" ]; then
+            i=$((tok - 1)); sel[i]=$((1 - sel[i]))
+          else
+            echo "  ignored: '$tok' (use 1-$n, a, n, or Enter)" >&2
+          fi
+        done ;;
+    esac
+  done
+fi
+
+# --- output + remember -------------------------------------------------------
+# Build the output as a string rather than an array: bash 3.2 (macOS) trips
+# set -u when expanding an empty array.
+chosen=
+for ((i = 0; i < n; i++)); do [ "${sel[i]}" = 1 ] && chosen="${chosen}${kits[i]}"$'\n'; done
+
+if [ "$mode" != fixed ]; then
+  mkdir -p "$(dirname "$state")"
+  printf '%s' "$chosen" >"$state"
+fi
+
+if [ -z "$chosen" ]; then
+  echo "sbx-kit-pick: no kits selected" >&2
+else
+  printf '%s' "$chosen"
+fi

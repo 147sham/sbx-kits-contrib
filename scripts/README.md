@@ -1,6 +1,14 @@
 # Scripts
 
-Standalone utilities for kit authors and maintainers. Each script is self-contained — no module dependencies outside the Go standard library — so it can be run directly via `go run` without pulling in the rest of `sbx-kits-contrib`.
+Standalone utilities for kit authors and maintainers. Each script is self-contained — the Go ones have no module dependencies outside the standard library, so they run directly via `go run` without pulling in the rest of `sbx-kits-contrib`; the shell ones need only `bash`, `jq` and `rsync`.
+
+## `sbx-kits.sh` — `cc` / `cm` / `cr` / `cs` shell helpers
+
+Source it from `~/.zshrc` or `~/.bashrc`. Defines `cc` (pick kits, create a Claude sandbox), `cm` (recreate an existing sandbox with the current kits while keeping its Claude state), `cr` (run Claude in the current directory's sandbox) and `cs` (shell into it). Usage, the kit picker, and every `SBX_KITS*` environment knob are documented in the repo README under [Quick start: shell helpers](../README.md#quick-start-shell-helpers).
+
+## `sbx-kit-pick` — interactive kit picker
+
+Used by `cc` and `cm`, but standalone: lists every kit directory in the repo as a checklist, remembers the last choice in `~/.config/sbx-kits/selected`, and prints the chosen kit names one per line on stdout (prompting goes to stderr and reads the terminal). `--all`, `--last` and `--kits a,b` skip the prompt; with no usable terminal it silently uses the default selection. `SBX_KITS_STATE` overrides the state file, which the tests use.
 
 ## `migrate-v1-to-v2.go` — v1 → v2 spec.yaml migration
 
